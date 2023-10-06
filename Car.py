@@ -7,8 +7,8 @@ class Spawner(WorldObject):
         self.entryPath : Path = entryPath
     
     def tick(self, deltatime, simulation):
-        dist = self.entryPath.getNextObstacleDistFrac(0)
-        if dist < 0 or dist > self.spacing:
+        obj, dist = self.entryPath.getNextObstacleDistFrac(0)
+        if obj is None or dist > self.spacing:
             # spawn
             newCar = Car(self.entryPath)
             newCar.loadSprite()
@@ -19,9 +19,8 @@ class Spawner(WorldObject):
 class Car(WorldObject):
     sprite_size = pygame.math.Vector2(64, 64)
     currPath = None
-    max_speed = 50
-    spacing = 70 # STOP when this close to a car ahead
-    accel = 10
+    max_speed = 70
+    accel = 30
 
     def __init__(self, initial_path : Path, initial_displ = 0):
         self.currPath = initial_path
@@ -30,10 +29,13 @@ class Car(WorldObject):
 
         self.curr_speed = self.max_speed
 
-        self.currPath.registerCar(self.id)
+        self.currPath.registerCar(self)
         if initial_displ:
             self.currPath = self.currPath.advance(self.id, initial_displ)
 
+    def getId(self):
+        return self.id
+    
     def getPos(self):
         if self.currPath:
             return self.currPath.getWorldPos(self.id)
@@ -48,23 +50,28 @@ class Car(WorldObject):
 
     def tick(self, deltatime, simulation):
         if self.currPath:
-            next_obstacle = self.currPath.getNextObstacleDist(self.id)
+            obj, dist = self.currPath.getNextObstacleDist(self.id)
             
-            if next_obstacle < 0:
+            if obj is None:
                 # unobstructed, speed up
                 self.curr_speed += self.accel*deltatime
-            elif next_obstacle < self.spacing:
-                # stop!
-                self.curr_speed = 0
             else:
-                # Calculate the slowing distance based on current speed, acceleration, and next obstacle distance
-                slowing_dist = (self.curr_speed*self.curr_speed) / (2 * self.accel) 
-                if next_obstacle < slowing_dist + self.spacing:
-                    # Slow down
-                    self.curr_speed -= self.accel*deltatime
+                spacing = 0
+                if type(obj) is Car:
+                    spacing += 100
+
+                if dist < spacing:
+                    # stop!
+                    self.curr_speed = 0
                 else:
-                    # unobstructed, speed up
-                    self.curr_speed += self.accel*deltatime
+                    # Calculate the slowing distance based on current speed, acceleration, and next obstacle distance
+                    slowing_dist = (self.curr_speed*self.curr_speed) / (2 * self.accel) 
+                    if dist < slowing_dist + spacing:
+                        # Slow down
+                        self.curr_speed -= self.accel*deltatime
+                    else:
+                        # unobstructed, speed up
+                        self.curr_speed += self.accel*deltatime
             
             self.curr_speed = min(self.max_speed, max(self.curr_speed, 0))
             self.currPath = self.currPath.advance(self.id, self.curr_speed*deltatime)

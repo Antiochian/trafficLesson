@@ -7,31 +7,34 @@ from Base import *
 INT_MAX = 999999999999999999999999
 class LineObjects:
     def __init__(self):
-        self.objects = {}
-        self.sorted_ids = []
+        self.objects = {} # ID : (Object, position)
+        self.sorted_ids = [] # (position, ID)
 
     def increment(self, objId, delta) -> float: # returns fractional distance ACTUALLY moved
-        old_position = self.objects.get(objId)
+        old_position = self.objects.get(objId)[1]
         if old_position is None:
             return 0
         else:
             actual_delta = min(1 - old_position, delta)
             new_position = old_position + actual_delta
-            self.objects[objId] = new_position
+            self.objects[objId][1] = new_position
             self.sorted_ids.remove((old_position, objId))
             bisect.insort(self.sorted_ids, (new_position, objId))
             return actual_delta
 
-    def add(self, objId, position):
-        self.objects[objId] = position
+    def add(self, objId, object, position):
+        self.objects[objId] = [object, position]
         bisect.insort(self.sorted_ids, (position, objId))
 
     def remove(self, objId):
-        position = self.objects.pop(objId, None)
+        position = self.objects.pop(objId, [None])[1]
         self.sorted_ids.remove((position, objId))
 
     def get_position(self, objId):
-        return self.objects.get(objId, None)
+        return self.objects.get(objId, [None])[1]
+    
+    def get_position_obj_tuple(self, objId):
+        return self.objects[objId]
 
     def get_next(self, objId):
         position = self.objects.get(objId)
@@ -68,9 +71,10 @@ class Path(WorldObject):
 
         return pygame.math.Vector2(0, 1).angle_to(self.parametrizeFunc(t0) - self.parametrizeFunc(t1))
         
-    def registerCar(self, carId):
+    def registerCar(self, car):
+        carId = car.getId()
         assert(carId not in self.carPos)
-        self.carPos.add(carId, 0)
+        self.carPos.add(carId, car, 0)
 
     # negative value implies no obstacle ahead!
     def getNextObstacleDist(self, objId):
@@ -80,14 +84,12 @@ class Path(WorldObject):
         res = self.carPos.get_next_from_position(frac)
         if res is None:
             if self.nextPath:
-                nextDist = self.nextPath.getNextObstacleDistFrac(0)
-                if nextDist > 0:
-                    return  (1-frac)*self.scale + nextDist 
-                else:
-                    return nextDist
+                obj, nextDist = self.nextPath.getNextObstacleDistFrac(0)
+                return (obj, (1-frac)*self.scale + nextDist)
             else:
-                return -1
-        return self.carPos.get_position(res) * self.scale
+                return (None, -1)
+        (obj, position) = self.carPos.get_position_obj_tuple(res)
+        return (obj, position * self.scale)
     
 
     def advance(self, carId, dist):
@@ -97,9 +99,10 @@ class Path(WorldObject):
 
         if frac_moved < frac_dist:            
             # Car has left this path
+            car, _ = self.carPos.get_position_obj_tuple(carId)
             self.carPos.remove(carId)
             if self.nextPath:
-                self.nextPath.registerCar(carId)
+                self.nextPath.registerCar(car)
                 dist_remaining = dist * (1 - (frac_moved / frac_dist))
                 return self.nextPath.advance(carId, dist_remaining)
             else:

@@ -31,9 +31,8 @@ class LightPath(LinePath):
     
     def getNextObstacleDistFrac(self, frac):
         if not self.canGo() and frac == 0:
-            return self.scale
-        res = super().getNextObstacleDistFrac(frac)
-        return res
+            return (self, 0)
+        return super().getNextObstacleDistFrac(frac)
 
     def getAngle(self, objId):
         return super().getAngle(objId)

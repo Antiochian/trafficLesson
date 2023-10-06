@@ -128,7 +128,7 @@ lightB = Light([430, 50], "B")
 lights = [lightA, lightB]
 
 paths = []
-path1 = LinePath(pygame.math.Vector2(321, 100), pygame.math.Vector2(321, 235))
+path1 = LinePath(pygame.math.Vector2(321, 0), pygame.math.Vector2(321, 235))
 path2 = LightPath(lightA, pygame.math.Vector2(321, 235), pygame.math.Vector2(321, 300))
 path3 = BezierPath(pygame.math.Vector2(321, 300), pygame.math.Vector2(360, 350), pygame.math.Vector2(321, 350), pygame.math.Vector2(321, 350))
 path4 = LinePath(pygame.math.Vector2(360, 350),  pygame.math.Vector2(560, 350))

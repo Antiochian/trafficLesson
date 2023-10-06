@@ -20,6 +20,10 @@ def load_image(name):
 
 
 class WorldObject:
+    def getId(self):
+        assert(False)
+        return
+    
     def loadSprite(self):
         return
 
