@@ -49,8 +49,8 @@ class LineObjects:
 
 class Path(WorldObject):
     color = pygame.Color("white")
-    carPos : LineObjects # id : fractional_position
-    nextPath = None
+   
+    
     
     # slow, use for debug only!!
     def draw(self, screen):
@@ -61,6 +61,7 @@ class Path(WorldObject):
         self.parametrizeFunc = parametrizeFunc
         self.carPos = LineObjects()
         self.scale = scale
+        self.nextPath = None
 
     def getAngle(self, objId):
         # get frac position

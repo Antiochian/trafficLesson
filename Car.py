@@ -5,15 +5,19 @@ class Spawner(WorldObject):
     spacing = 100
     def __init__(self, entryPath : Path):
         self.entryPath : Path = entryPath
+        self.just_spawned = False
     
     def tick(self, deltatime, simulation):
         obj, dist = self.entryPath.getNextObstacleDistFrac(0)
-        if obj is None or dist > self.spacing:
+        if not self.just_spawned and (obj is None or dist > self.spacing):
             # spawn
             newCar = Car(self.entryPath)
             newCar.loadSprite()
             simulation.tickables.append(newCar)
             simulation.drawables.append(newCar)
+            self.just_spawned = True
+        else:
+            self.just_spawned = False
 
         
 class Car(WorldObject):
@@ -74,6 +78,8 @@ class Car(WorldObject):
                         self.curr_speed += self.accel*deltatime
             
             self.curr_speed = min(self.max_speed, max(self.curr_speed, 0))
+            if self.curr_speed < 0.001:
+                self.curr_speed = 0
             self.currPath = self.currPath.advance(self.id, self.curr_speed*deltatime)
         
     def draw(self, screen):
