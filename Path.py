@@ -5,10 +5,10 @@ import os
 import math
 from Base import *
 INT_MAX = 999999999999999999999999
-class LineObjects:
+class LineMap:
     def __init__(self):
-        self.objects = {} # ID : (Object, position)
-        self.sorted_ids = [] # (position, ID)
+        self.objects : dict[ int : [WorldObject, float]]= {} # ID : (Object, position)
+        self.sorted_ids : list[tuple[float, int]]= [] # (position, ID)
 
     def increment(self, objId, delta) -> float: # returns fractional distance ACTUALLY moved
         old_position = self.objects.get(objId)[1]
@@ -22,25 +22,18 @@ class LineObjects:
             bisect.insort(self.sorted_ids, (new_position, objId))
             return actual_delta
 
-    def add(self, objId, object, position):
-        self.objects[objId] = [object, position]
-        bisect.insort(self.sorted_ids, (position, objId))
+    def add(self, objId : int, object : WorldObject):
+        self.objects[objId] = [object, 0]
+        bisect.insort(self.sorted_ids, (0, objId))
 
-    def remove(self, objId):
+    def remove(self, objId : int):
         position = self.objects.pop(objId, [None])[1]
         self.sorted_ids.remove((position, objId))
-
-    def get_position(self, objId):
-        return self.objects.get(objId, [None])[1]
     
-    def get_position_obj_tuple(self, objId):
+    def get_obj_position_tuple(self, objId) -> list[WorldObject, float]:
         return self.objects[objId]
 
-    def get_next(self, objId):
-        position = self.objects.get(objId)
-        return self.get_next_from_position(position)
-
-    def get_next_from_position(self, position):
+    def get_next_from_position(self, position) -> list[WorldObject, float]:
         idx = bisect.bisect(self.sorted_ids, (position, INT_MAX))
         return self.sorted_ids[idx][1] if idx < len(self.sorted_ids) else None
     
@@ -59,7 +52,7 @@ class Path(WorldObject):
 
     def __init__(self, parametrizeFunc, scale : float):
         self.parametrizeFunc = parametrizeFunc
-        self.carPos = LineObjects()
+        self.carPos = LineMap()
         self.scale = scale
         self.nextPath = None
 
@@ -89,7 +82,7 @@ class Path(WorldObject):
                 return (obj, (1-frac)*self.scale + nextDist)
             else:
                 return (None, -1)
-        (obj, position) = self.carPos.get_position_obj_tuple(res)
+        (obj, position) = self.carPos.get_obj_position_tuple(res)
         return (obj, position * self.scale)
     
 
@@ -100,7 +93,7 @@ class Path(WorldObject):
 
         if frac_moved < frac_dist:            
             # Car has left this path
-            car, _ = self.carPos.get_position_obj_tuple(carId)
+            car, _ = self.carPos.get_obj_position_tuple(carId)
             self.carPos.remove(carId)
             if self.nextPath:
                 self.nextPath.registerCar(car)
