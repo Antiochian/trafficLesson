@@ -35,4 +35,4 @@ def allRed(s):
     s.setLight("green", True, "A")
     s.setLight("red", False, "A")
     s.wait(2)
-levelOne.run(solution, 15)
+levelOne.run(solution, 150)

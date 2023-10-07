@@ -5,12 +5,13 @@ class Spawner(WorldObject):
     spacing = 100
     def __init__(self, entryPath : Path):
         self.entryPath : Path = entryPath
-        self.just_spawned = False
+        self.just_spawned = True
     
     def tick(self, deltatime, simulation):
-        obj, dist = self.entryPath.getNextObstacleDistFrac(0)
+        obj, dist = self.entryPath.getNextObstacleDistFrac(-1)
         if not self.just_spawned and (obj is None or dist > self.spacing):
             # spawn
+            print("Spawned (spacin= ", dist)
             newCar = Car(self.entryPath)
             newCar.loadSprite()
             simulation.tickables.append(newCar)

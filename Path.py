@@ -5,22 +5,22 @@ import os
 import math
 from Base import *
 INT_MAX = 999999999999999999999999
+
 class LineMap:
     def __init__(self):
         self.objects : dict[ int : [WorldObject, float]]= {} # ID : (Object, position)
         self.sorted_ids : list[tuple[float, int]]= [] # (position, ID)
 
-    def increment(self, objId, delta) -> float: # returns fractional distance ACTUALLY moved
+    def increment(self, objId : int, delta : float) -> (float, bool): # returns fractional distance ACTUALLY moved
         old_position = self.objects.get(objId)[1]
-        if old_position is None:
-            return 0
-        else:
-            actual_delta = min(1 - old_position, delta)
-            new_position = old_position + actual_delta
-            self.objects[objId][1] = new_position
-            self.sorted_ids.remove((old_position, objId))
-            bisect.insort(self.sorted_ids, (new_position, objId))
-            return actual_delta
+
+        actual_delta = min(1 - old_position, delta)
+        new_position = old_position + actual_delta
+
+        self.objects[objId][1] = new_position
+        self.sorted_ids.remove((old_position, objId))
+        bisect.insort(self.sorted_ids, (new_position, objId))
+        return actual_delta, (actual_delta < delta)
 
     def add(self, objId : int, object : WorldObject):
         self.objects[objId] = [object, 0]
@@ -30,21 +30,26 @@ class LineMap:
         position = self.objects.pop(objId, [None])[1]
         self.sorted_ids.remove((position, objId))
     
-    def get_obj_position_tuple(self, objId) -> list[WorldObject, float]:
+    def get_position(self, objId : int) -> float:
+        return self.objects[objId][1]
+    
+    def get_obj_position_tuple(self, objId : int) -> list[WorldObject, float]:
         return self.objects[objId]
 
-    def get_next_from_position(self, position) -> list[WorldObject, float]:
+    def get_next_from_position(self, position : float) -> list[WorldObject, float]:
         idx = bisect.bisect(self.sorted_ids, (position, INT_MAX))
         return self.sorted_ids[idx][1] if idx < len(self.sorted_ids) else None
     
-    def __iter__(self):
-        return iter(self.objects)
+    def contains(self,  objId : int) -> bool:
+        for _, id in self.sorted_ids:
+            if objId == id:
+                return True
+        return False
+
 
 class Path(WorldObject):
     color = pygame.Color("white")
    
-    
-    
     # slow, use for debug only!!
     def draw(self, screen):
         step = 0.01
@@ -52,13 +57,13 @@ class Path(WorldObject):
 
     def __init__(self, parametrizeFunc, scale : float):
         self.parametrizeFunc = parametrizeFunc
-        self.carPos = LineMap()
+        self.lineContainer = LineMap()
         self.scale = scale
         self.nextPath = None
 
     def getAngle(self, objId):
         # get frac position
-        frac = self.carPos.get_position(objId)
+        frac = self.lineContainer.get_position(objId)
         # test up and down
         t0 = max(0, frac - 0.01)
         t1 = min(1, frac + 0.01)
@@ -67,38 +72,38 @@ class Path(WorldObject):
         
     def registerCar(self, car):
         carId = car.getId()
-        assert(carId not in self.carPos)
-        self.carPos.add(carId, car, 0)
+        assert(not self.lineContainer.contains(carId))
+        self.lineContainer.add(carId, car)
 
-    # negative value implies no obstacle ahead!
-    def getNextObstacleDist(self, objId):
-        return self.getNextObstacleDistFrac(self.carPos.get_position(objId))
+
+    def getNextObstacleDist(self, objId) -> (WorldObject, float):
+        return self.getNextObstacleDistFrac(self.lineContainer.get_obj_position_tuple(objId)[1])
     
-    def getNextObstacleDistFrac(self, frac):
-        res = self.carPos.get_next_from_position(frac)
+    def getNextObstacleDistFrac(self, frac) -> (WorldObject, float):
+        res = self.lineContainer.get_next_from_position(frac)
         if res is None:
             if self.nextPath:
-                obj, nextDist = self.nextPath.getNextObstacleDistFrac(0)
+                obj, nextDist = self.nextPath.getNextObstacleDistFrac(-1)
                 return (obj, (1-frac)*self.scale + nextDist)
             else:
                 return (None, -1)
-        (obj, position) = self.carPos.get_obj_position_tuple(res)
-        return (obj, position * self.scale)
+        (obj, position) = self.lineContainer.get_obj_position_tuple(res)
+        return (obj, (position- frac) * self.scale)
     
 
     def advance(self, carId, dist):
         frac_dist = dist / self.scale
         # convert dist to fractional dist
-        frac_moved = self.carPos.increment(carId, frac_dist)
-
-        if frac_moved < frac_dist:            
+        frac_moved, finished = self.lineContainer.increment(carId, frac_dist)
+        
+        if finished:            
             # Car has left this path
-            car, _ = self.carPos.get_obj_position_tuple(carId)
-            self.carPos.remove(carId)
+            dist_moved = frac_moved * self.scale
+            car, _ = self.lineContainer.get_obj_position_tuple(carId)
+            self.lineContainer.remove(carId)
             if self.nextPath:
                 self.nextPath.registerCar(car)
-                dist_remaining = dist * (1 - (frac_moved / frac_dist))
-                return self.nextPath.advance(carId, dist_remaining)
+                return self.nextPath.advance(carId, dist - dist_moved)
             else:
                 return None
         return self
@@ -108,7 +113,7 @@ class Path(WorldObject):
         return self.parametrizeFunc(frac)
     
     def getWorldPos(self, carId):
-        return self.fracToWorldPos(self.carPos.get_position(carId))
+        return self.fracToWorldPos(self.lineContainer.get_obj_position_tuple(carId)[1])
 
 
 class LinePath(Path):

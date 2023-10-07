@@ -19,7 +19,7 @@ class LightPath(LinePath):
         return (g and not r)
 
     def advance(self, carId, dist):
-        if self.canGo() or self.carPos.get_position(carId) > 0:
+        if self.canGo() or self.lineContainer.get_position(carId) > 0:
             # go
             return super().advance(carId, dist)
         else:
@@ -27,7 +27,7 @@ class LightPath(LinePath):
             return self
 
     def getNextObstacleDist(self, objId):
-        return self.getNextObstacleDistFrac(self.carPos.get_position(objId))
+        return self.getNextObstacleDistFrac(self.lineContainer.get_position(objId))
     
     def getNextObstacleDistFrac(self, frac):
         if not self.canGo() and frac == 0:
